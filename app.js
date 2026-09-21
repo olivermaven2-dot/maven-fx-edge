@@ -1,4 +1,4 @@
-const WS_URL="wss://api.derivws.com/trading/v1/options/ws/public";
+const WS_URL="wss://ws.binaryws.com/websockets/v3";
 const MIN_SAMPLE=120, MAX_HISTORY=2500;
 const PAIRS={OVER:{1:8,2:7,3:6,4:5,5:4,6:3,7:2,8:1},UNDER:{1:8,2:7,3:6,4:5,5:4,6:3,7:2,8:1}};
 const state={ws:null,markets:[],market:"",digit:1,direction:"OVER",buffers:new Map(),stream:[],price:null,reconnectTimer:null};
@@ -48,11 +48,11 @@ function subscribe(symbol){if(!state.ws||state.ws.readyState!==1||!symbol)return
 function connect(){
   setStatus("CONNECTING","connecting");
   try{state.ws=new WebSocket(WS_URL)}catch(e){setStatus("OFFLINE","offline");scheduleReconnect();return}
-  state.ws.onopen=()=>{setStatus("LIVE","live");state.ws.send(JSON.stringify({active_symbols:"full",req_id:1}))};
+  state.ws.onopen=()=>{setStatus("LIVE","live");setText("signalReason","Connected to Deriv market-data server. Loading markets…");state.ws.send(JSON.stringify({active_symbols:"brief",product_type:"basic",req_id:1}))};
   state.ws.onmessage=e=>{
     let m;try{m=JSON.parse(e.data)}catch{return}
     if(m.error||m.errors){const msg=m.error?.message||m.errors?.[0]?.message||"Deriv connection error";setStatus("ERROR","offline");setText("signalReason",msg);console.error("Deriv API error",m.error||m.errors);return}
-    if(m.msg_type==="active_symbols"||Array.isArray(m.active_symbols)){
+    if(m.msg_type==="active_symbols"){
       state.markets=(m.active_symbols||[]).map(x=>({
         symbol:x.symbol||x.underlying_symbol,
         name:x.display_name||x.underlying_symbol_name||x.symbol||x.underlying_symbol,
@@ -69,7 +69,7 @@ function connect(){
     }
   };
   state.ws.onclose=()=>{setStatus("OFFLINE","offline");scheduleReconnect()};
-  state.ws.onerror=()=>{setStatus("ERROR","offline");setText("signalReason","WebSocket connection failed — retrying.");};
+  state.ws.onerror=()=>{setStatus("ERROR","offline");setText("signalReason","WebSocket could not be opened. Retrying automatically…");};
 }
 function scheduleReconnect(){if(state.reconnectTimer)return;state.reconnectTimer=setTimeout(()=>{state.reconnectTimer=null;connect()},3000)}
 function populateMarkets(){
