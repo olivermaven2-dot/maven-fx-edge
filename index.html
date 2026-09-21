@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#07111f">
+  <meta name="description" content="Maven FX Precision Digit Analysis">
+  <link rel="manifest" href="./manifest.webmanifest">
+  <link rel="stylesheet" href="./styles.css">
+  <title>MAVEN FX — Precision Digit Analysis</title>
+</head>
+<body>
+  <header class="topbar">
+    <div>
+      <div class="brand">MAVEN FX</div>
+      <div class="subtitle">Precision Digit Analysis</div>
+    </div>
+    <div id="connection" class="status connecting">CONNECTING</div>
+  </header>
+
+  <main class="wrap">
+    <section class="signal-card">
+      <div class="eyebrow">FINAL SIGNAL</div>
+      <div id="signalStatus" class="signal-status wait">WAIT</div>
+      <div id="signalContract" class="signal-contract">OVER 1</div>
+      <div id="signalReason" class="muted">Waiting for sufficient live data and independent confirmation.</div>
+    </section>
+
+    <section class="card controls">
+      <label>Market
+        <select id="market"></select>
+      </label>
+
+      <div class="control-block">
+        <span class="label">Digit</span>
+        <div id="digits" class="digit-grid"></div>
+      </div>
+
+      <div class="control-block">
+        <span class="label">Direction</span>
+        <div class="direction-grid">
+          <button class="direction active" data-direction="OVER">OVER</button>
+          <button class="direction" data-direction="UNDER">UNDER</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="card live">
+      <div class="section-title">LIVE TICK</div>
+      <div class="live-grid">
+        <div><span>Ticks</span><strong id="tickCount">0</strong></div>
+        <div><span>Last digit</span><strong id="lastDigit">—</strong></div>
+        <div><span>Price</span><strong id="lastPrice">—</strong></div>
+      </div>
+      <div id="stream" class="stream">Waiting for ticks…</div>
+      <button id="clear" class="secondary">Clear visible stream</button>
+    </section>
+
+    <section class="grid">
+      <article class="card"><div class="section-title">Probability</div><div id="probability">Waiting…</div></article>
+      <article class="card"><div class="section-title">Paired Gate</div><div id="paired">Waiting…</div></article>
+      <article class="card"><div class="section-title">Transitions</div><div id="transitions">Waiting…</div></article>
+      <article class="card"><div class="section-title">Regime</div><div id="regime">Waiting…</div></article>
+      <article class="card"><div class="section-title">Stability</div><div id="stability">Waiting…</div></article>
+      <article class="card"><div class="section-title">Validation</div><div id="validation">Waiting…</div></article>
+    </section>
+
+    <section class="card">
+      <div class="section-title">Digit Distribution</div>
+      <div id="distribution" class="bars"></div>
+    </section>
+
+    <footer>Analysis only • No Deriv account connection • No trade execution</footer>
+  </main>
+
+  <script src="./app.js"></script>
+</body>
+</html>
