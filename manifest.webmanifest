@@ -1,0 +1,10 @@
+{
+  "name":"MAVEN FX — Precision Digit Analysis",
+  "short_name":"MAVEN FX",
+  "start_url":"./",
+  "display":"standalone",
+  "background_color":"#06101d",
+  "theme_color":"#07111f",
+  "description":"Live Deriv synthetic digit analysis tool",
+  "icons":[]
+}
