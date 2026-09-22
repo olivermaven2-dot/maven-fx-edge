@@ -1,7 +1,7 @@
 const APP_ID=1089;\nconst WS_URLS=[`wss://ws.derivws.com/websockets/v3?app_id=${APP_ID}`,`wss://ws.binaryws.com/websockets/v3?app_id=${APP_ID}`];
 const MIN_SAMPLE=120, MAX_HISTORY=2500;
 const PAIRS={OVER:{1:8,2:7,3:6,4:5,5:4,6:3,7:2,8:1},UNDER:{1:8,2:7,3:6,4:5,5:4,6:3,7:2,8:1}};
-const state={ws:null,markets:[],market:"",digit:1,direction:"OVER",buffers:new Map(),stream:[],price:null,reconnectTimer:null,endpoint:0,connectedAt:0,lastMessage:"—",pingTimer:null};
+const state={ws:null,markets:[],market:"",digit:1,direction:"OVER",buffers:new Map(),stream:[],price:null,reconnectTimer:null,endpoint:0,connectedAt:0,lastMessage:"—",pingTimer:null,handshakeTimer:null};
 
 const $=id=>document.getElementById(id);
 const key=()=>state.market;
@@ -43,18 +43,26 @@ function analyze(){
 }
 function setSignal(status,reason){$("signalStatus").textContent=status;$("signalStatus").className="signal-status "+status.toLowerCase().replace(" ","-");$("signalReason").textContent=reason}
 function renderStream(){$("stream").textContent=state.stream.length?state.stream.join(" "):"Waiting for ticks…";setText("tickCount",buffer().length);setText("lastDigit",state.stream.at(-1)??"—");setText("lastPrice",state.price??"—")}
-function digitFromQuote(quote,pip){const decimals=Math.max(0,Number(pip)||0);const fixed=Number(quote).toFixed(decimals);const digits=fixed.replace(/\D/g,"");return Number(digits.at(-1))}
+function digitFromQuote(quote,pip){const p=Number(pip);let decimals=0;if(Number.isFinite(p)&&p>0&&p<1)decimals=Math.max(0,Math.round(-Math.log10(p)));else if(Number.isInteger(p)&&p>=0&&p<=10)decimals=p;const fixed=Number(quote).toFixed(decimals);const digits=fixed.replace(/\D/g,"");return Number(digits.at(-1))}
 function subscribe(symbol){if(!state.ws||state.ws.readyState!==1||!symbol)return;state.ws.send(JSON.stringify({ticks:symbol,subscribe:1,req_id:Date.now()}))}
 function connect(){
   setStatus("CONNECTING","connecting");
-  const url=WS_URLS[state.endpoint%WS_URLS.length];
+  const cfg=WS_CONFIGS[state.endpoint%WS_CONFIGS.length];
+  const url=cfg.url;
   setText("signalReason","Opening public market-data connection…");
   try{state.ws=new WebSocket(url)}catch(e){setStatus("OFFLINE","offline");setText("signalReason","WebSocket could not be created. Trying the alternate Deriv endpoint…");state.endpoint++;scheduleReconnect();return}
   state.ws.onopen=()=>{
     state.connectedAt=Date.now();
     setStatus("LIVE","live");
     setText("signalReason","Connected. Requesting live markets…");
-    const req=state.endpoint===0
+    clearTimeout(state.handshakeTimer);
+    state.handshakeTimer=setTimeout(()=>{
+      if(state.lastMessage!=="active_symbols"&&state.ws?.readyState===1){
+        setText("signalReason","Connected, but market list did not arrive. Switching Deriv public channel…");
+        try{state.ws.close()}catch{}
+      }
+    },8000);
+    const req=cfg.legacy
       ? {active_symbols:"brief",product_type:"basic",req_id:1}
       : {active_symbols:"brief",req_id:1};
     state.ws.send(JSON.stringify(req));
@@ -65,6 +73,7 @@ function connect(){
     if(m.error||m.errors){const msg=m.error?.message||m.errors?.[0]?.message||"Deriv connection error";setStatus("ERROR","offline");setText("signalReason",msg+" Trying alternate endpoint…");console.error("Deriv API error",m.error||m.errors);state.endpoint++;try{state.ws.close()}catch{};return}
     if(m.msg_type==="active_symbols"){
       state.lastMessage="active_symbols";
+      clearTimeout(state.handshakeTimer);
       state.markets=(m.active_symbols||[]).map(x=>({
         symbol:x.symbol||x.underlying_symbol,
         name:x.display_name||x.underlying_symbol_name||x.symbol||x.underlying_symbol,
@@ -84,7 +93,7 @@ function connect(){
       state.price=quote;state.stream.push(d);if(state.stream.length>80)state.stream.shift();renderStream();analyze()
     }
   };
-  state.ws.onclose=()=>{clearInterval(state.pingTimer);state.pingTimer=null;setStatus("OFFLINE","offline");setText("signalReason","Connection closed. Switching endpoint and retrying…");state.endpoint++;scheduleReconnect()};
+  state.ws.onclose=()=>{clearInterval(state.pingTimer);clearTimeout(state.handshakeTimer);state.pingTimer=null;setStatus("OFFLINE","offline");setText("signalReason","Connection closed. Switching endpoint and retrying…");state.endpoint++;scheduleReconnect()};
   state.ws.onerror=()=>{setStatus("ERROR","offline");setText("signalReason","WebSocket connection failed. Retrying with Deriv app ID…");};
 }
 function scheduleReconnect(){if(state.reconnectTimer)return;state.reconnectTimer=setTimeout(()=>{state.reconnectTimer=null;connect()},3000)}
