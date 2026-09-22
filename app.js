@@ -1,4 +1,7 @@
-const APP_ID=1089;\nconst WS_URLS=[`wss://ws.derivws.com/websockets/v3?app_id=${APP_ID}`,`wss://ws.binaryws.com/websockets/v3?app_id=${APP_ID}`];
+const APP_ID=1089;\nconst WS_CONFIGS=[
+  {url:"wss://ws.binaryws.com/websockets/v3",legacy:true},
+  {url:`wss://ws.derivws.com/websockets/v3?app_id=${APP_ID}`,legacy:true}
+];
 const MIN_SAMPLE=120, MAX_HISTORY=2500;
 const PAIRS={OVER:{1:8,2:7,3:6,4:5,5:4,6:3,7:2,8:1},UNDER:{1:8,2:7,3:6,4:5,5:4,6:3,7:2,8:1}};
 const state={ws:null,markets:[],market:"",digit:1,direction:"OVER",buffers:new Map(),stream:[],price:null,reconnectTimer:null,endpoint:0,connectedAt:0,lastMessage:"—",pingTimer:null,handshakeTimer:null};
