@@ -66,9 +66,7 @@ function connect(){
         try{state.ws.close()}catch{}
       }
     },8000);
-    const req=cfg.legacy
-      ? {active_symbols:"brief",product_type:"basic",req_id:1}
-      : {active_symbols:"brief",req_id:1};
+    const req={active_symbols:"brief",req_id:1};
     state.ws.send(JSON.stringify(req));
     // Do not subscribe to a hard-coded test symbol here. Wait for active_symbols, then subscribe to the selected market.\n    clearInterval(state.pingTimer);\n    state.pingTimer=setInterval(()=>{if(state.ws?.readyState===1)state.ws.send(JSON.stringify({ping:1,req_id:Date.now()}))},20000);
   };
@@ -80,11 +78,14 @@ function connect(){
       clearTimeout(state.handshakeTimer);
       state.markets=(m.active_symbols||[]).map(x=>({
         symbol:x.symbol||x.underlying_symbol,
-        name:x.display_name||x.underlying_symbol_name||x.symbol||x.underlying_symbol,
+        name:x.display_name||x.underlying_symbol_name||x.name||x.symbol||x.underlying_symbol,
         pip:x.pip_size||x.pip
-      })).filter(x=>x.symbol&&/Volatility|Jump/i.test(x.name)).sort((a,b)=>a.name.localeCompare(b.name));
-      if(!state.markets.length){setText("signalReason",`Connected, but Deriv returned no Volatility/Jump symbols on this endpoint (${cfg.url}).`)}
-      populateMarkets();return
+      })).filter(x=>x.symbol&&/volatility|jump|boom|crash|drift|step/i.test(x.name)).sort((a,b)=>a.name.localeCompare(b.name));
+      if(!state.markets.length){setText("signalReason",`Connected, but no synthetic symbols matched. Raw symbols received: ${(m.active_symbols||[]).length}.`)}
+      else setText("signalReason",`Loaded ${state.markets.length} synthetic markets. Select a market to start ticks.`);
+      populateMarkets();
+      if(state.markets.length && !state.selectedMarket){state.selectedMarket=state.markets[0].symbol;const el=document.getElementById("market");if(el)el.value=state.selectedMarket;subscribeMarket();}
+      return
     }
     if(m.msg_type==="tick"){
       state.lastMessage="tick";
