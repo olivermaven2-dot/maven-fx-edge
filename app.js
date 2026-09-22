@@ -52,12 +52,13 @@ function connect(){
   setStatus("CONNECTING","connecting");
   const cfg=WS_CONFIGS[state.endpoint%WS_CONFIGS.length];
   const url=cfg.url;
+  setText("signalReason",`Connecting to Deriv public market data (${state.endpoint%WS_CONFIGS.length+1}/${WS_CONFIGS.length})…`);
   setText("signalReason","Opening public market-data connection…");
   try{state.ws=new WebSocket(url)}catch(e){setStatus("OFFLINE","offline");setText("signalReason","WebSocket could not be created. Trying the alternate Deriv endpoint…");state.endpoint++;scheduleReconnect();return}
   state.ws.onopen=()=>{
     state.connectedAt=Date.now();
     setStatus("LIVE","live");
-    setText("signalReason","Connected. Requesting live markets…");
+    setText("signalReason",`Connected to Deriv. Requesting live markets…`);
     clearTimeout(state.handshakeTimer);
     state.handshakeTimer=setTimeout(()=>{
       if(state.lastMessage!=="active_symbols"&&state.ws?.readyState===1){
@@ -69,11 +70,11 @@ function connect(){
       ? {active_symbols:"brief",product_type:"basic",req_id:1}
       : {active_symbols:"brief",req_id:1};
     state.ws.send(JSON.stringify(req));
-    state.ws.send(JSON.stringify({ticks:"1HZ100V",subscribe:1,req_id:2}));\n    clearInterval(state.pingTimer);\n    state.pingTimer=setInterval(()=>{if(state.ws?.readyState===1)state.ws.send(JSON.stringify({ping:1,req_id:Date.now()}))},20000);
+    // Do not subscribe to a hard-coded test symbol here. Wait for active_symbols, then subscribe to the selected market.\n    clearInterval(state.pingTimer);\n    state.pingTimer=setInterval(()=>{if(state.ws?.readyState===1)state.ws.send(JSON.stringify({ping:1,req_id:Date.now()}))},20000);
   };
   state.ws.onmessage=e=>{
     let m;try{m=JSON.parse(e.data)}catch{return}
-    if(m.error||m.errors){const msg=m.error?.message||m.errors?.[0]?.message||"Deriv connection error";setStatus("ERROR","offline");setText("signalReason",msg+" Trying alternate endpoint…");console.error("Deriv API error",m.error||m.errors);state.endpoint++;try{state.ws.close()}catch{};return}
+    if(m.error||m.errors){const msg=m.error?.message||m.errors?.[0]?.message||"Deriv connection error";setStatus("ERROR","offline");setText("signalReason",`${msg} • endpoint: ${cfg.url}`);console.error("Deriv API error",m.error||m.errors);state.endpoint++;try{state.ws.close()}catch{};return}
     if(m.msg_type==="active_symbols"){
       state.lastMessage="active_symbols";
       clearTimeout(state.handshakeTimer);
@@ -82,6 +83,7 @@ function connect(){
         name:x.display_name||x.underlying_symbol_name||x.symbol||x.underlying_symbol,
         pip:x.pip_size||x.pip
       })).filter(x=>x.symbol&&/Volatility|Jump/i.test(x.name)).sort((a,b)=>a.name.localeCompare(b.name));
+      if(!state.markets.length){setText("signalReason",`Connected, but Deriv returned no Volatility/Jump symbols on this endpoint (${cfg.url}).`)}
       populateMarkets();return
     }
     if(m.msg_type==="tick"){
